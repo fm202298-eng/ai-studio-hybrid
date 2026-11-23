@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#10141f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="AI Studio" />
+  <title>AI Studio Hybrid</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0c0f17;
+      --bg-glow: #27304c;
+      --surface-1: #171c29;
+      --surface-2: #131824;
+      --surface-input: #0e131e;
+      --border: #2a3040;
+      --border-input: #343b4d;
+      --text: #eef0f7;
+      --muted: #9ba4b9;
+      --accent-1: #7864ed;
+      --accent-2: #4d8fd5;
+      --radius-lg: 18px;
+      --radius-md: 12px;
+      font-family: "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: radial-gradient(ellipse at 75% -10%, var(--bg-glow) 0, transparent 45%), var(--bg);
+      color: var(--text);
+      padding: 16px;
+      line-height: 1.6;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 760px;
+      margin: 0 auto;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 16px;
+      padding: 8px 4px;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo {
+      width: 44px;
+      height: 44px;
+      border-radius: 13px;
+      background: linear-gradient(135deg, #8c72ff, #42c6c5);
+      display: grid;
+      place-items: center;
+      font-weight: 800;
+      font-size: 15px;
+      color: #fff;
+      box-shadow: 0 8px 20px rgba(106, 87, 230, 0.3);
+      flex-shrink: 0;
+    }
+
+    h1 {
+      font-size: 21px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .sub {
+      color: var(--muted);
+      font-size: 12px;
+      margin: 2px 0 0;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
