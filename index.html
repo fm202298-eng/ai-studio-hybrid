@@ -95,3 +95,374 @@
     .header-actions {
       display: flex;
       align-items: center;
+      </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="logo">AI</div>
+        <div>
+          <h1>AI Studio Hybrid</h1>
+          <p class="sub">نص إلى فيديو • صورة إلى فيديو • سجل محلي</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="installBtn" class="btn-secondary">تثبيت التطبيق</button>
+      </div>
+    </header>
+
+    <div id="installBanner" class="banner" role="note">
+      افتح القائمة (⋮) في متصفح Chrome ثم اختر «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق».
+    </div>
+
+    <div class="tabs" role="tablist">
+      <button type="button" class="tab active" data-mode="text" role="tab" aria-selected="true">نص إلى فيديو</button>
+      <button type="button" class="tab" data-mode="image" role="tab" aria-selected="false">صورة إلى فيديو</button>
+    </div>
+
+    <section class="card">
+      <div id="presets" class="presets">
+        <button type="button" class="preset-btn" data-prompt="لقطة سينمائية بطيئة لمدينة ساحلية عند الغروب مع انعكاس الأنوار على الماء">غروب ساحلي</button>
+        <button type="button" class="preset-btn" data-prompt="حركة كاميرا متقدمة داخل غابة ضبابية مع أشعة شمس تتخلل الأشجار">غابة ضبابية</button>
+        <button type="button" class="preset-btn" data-prompt="مشهد مستقبلي ليلي في شارع مضاء بالنيون مع حركة سيارات خفيفة">شارع مستقبلي</button>
+      </div>
+
+      <div id="textModeSection">
+        <label for="promptInput">وصف المشهد (Prompt)</label>
+        <textarea id="promptInput" rows="3" placeholder="اكتب وصف المشهد المطلوب بدقة..."></textarea>
+      </div>
+
+      <div id="imageModeSection" style="display: none;">
+        <label for="imageInput">صورة مرجعية</label>
+        <input type="file" id="imageInput" accept="image/*" />
+        <img id="imagePreview" alt="معاينة الصورة المختارة" style="display: none; max-width: 100%; border-radius: 10px; margin-top: 8px;" />
+        <label for="motionPrompt" style="margin-top: 10px;">وصف الحركة المطلوبة</label>
+        <input type="text" id="motionPrompt" placeholder="مثال: تكبير بطيء مع حركة السحب والرياح" />
+      </div>
+
+      <div class="controls-row">
+        <div>
+          <label for="durationSelect">المدة</label>
+          <select id="durationSelect">
+            <option value="5s">5 ثوانٍ</option>
+            <option value="10s" selected>10 ثوانٍ</option>
+            <option value="15s">15 ثانية</option>
+          </select>
+        </div>
+        <div>
+          <label for="aspectSelect">الأبعاد</label>
+          <select id="aspectSelect">
+            <option value="16:9" selected>16:9 أفقي</option>
+            <option value="9:16">9:16 عمودي</option>
+            <option value="1:1">1:1 مربع</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="actions-row">
+        <button type="button" id="generateBtn" class="btn-primary">تجهيز المعاينة</button>
+        <button type="button" id="clearBtn" class="btn-secondary">مسح</button>
+      </div>
+
+      <p id="statusMsg" class="sub">أدخل وصفاً أو اختر قالباً جاهزاً لبدء المعاينة.</p>
+      <div id="enhancedBox" class="enhanced-box" style="display: none;"></div>
+      <video id="resultVideo" controls style="display: none; width: 100%; margin-top: 10px; border-radius: 10px;"></video>
+    </section>
+
+    <section class="card">
+      <h2>السجل المحلي</h2>
+      <div id="historyList" class="history-list"></div>
+    </section>
+  </div>
+
+  <script>
+    (() => {
+      const STORAGE_KEY = "ai_studio_hybrid_history_v1";
+
+      const tabs = document.querySelectorAll(".tab");
+      const textModeSection = document.getElementById("textModeSection");
+      const imageModeSection = document.getElementById("imageModeSection");
+      const presetsContainer = document.getElementById("presets");
+      const promptInput = document.getElementById("promptInput");
+      const imageInput = document.getElementById("imageInput");
+      const imagePreview = document.getElementById("imagePreview");
+      const motionPrompt = document.getElementById("motionPrompt");
+      const durationSelect = document.getElementById("durationSelect");
+      const aspectSelect = document.getElementById("aspectSelect");
+      const generateBtn = document.getElementById("generateBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const statusMsg = document.getElementById("statusMsg");
+      const enhancedBox = document.getElementById("enhancedBox");
+      const resultVideo = document.getElementById("resultVideo");
+      const historyList = document.getElementById("historyList");
+      const installBtn = document.getElementById("installBtn");
+      const installBanner = document.getElementById("installBanner");
+
+      let currentMode = "text";
+      let uploadedImageData = "";
+      let deferredInstallPrompt = null;
+
+      function setMode(mode) {
+        currentMode = mode;
+        tabs.forEach((tab) => {
+          const isActive = tab.dataset.mode === mode;
+          tab.classList.toggle("active", isActive);
+          tab.setAttribute("aria-selected", String(isActive));
+        });
+
+        if (textModeSection) {
+          textModeSection.style.display = mode === "text" ? "block" : "none";
+        }
+        if (imageModeSection) {
+          imageModeSection.style.display = mode === "image" ? "block" : "none";
+        }
+      }
+
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          setMode(tab.dataset.mode || "text");
+        });
+      });
+
+      if (presetsContainer) {
+        presetsContainer.addEventListener("click", (event) => {
+          const btn = event.target.closest(".preset-btn");
+          if (!btn) return;
+          const promptText = btn.dataset.prompt || "";
+          if (currentMode === "image" && motionPrompt) {
+            motionPrompt.value = promptText;
+          } else if (promptInput) {
+            setMode("text");
+            promptInput.value = promptText;
+          }
+          if (statusMsg) {
+            statusMsg.textContent = "تم تطبيق القالب الجاهز، يمكنك تعديله أو الضغط على تجهيز المعاينة.";
+          }
+        });
+      }
+
+      if (imageInput) {
+        imageInput.addEventListener("change", () => {
+          const file = imageInput.files && imageInput.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = () => {
+            uploadedImageData = typeof reader.result === "string" ? reader.result : "";
+            if (imagePreview && uploadedImageData) {
+              imagePreview.src = uploadedImageData;
+              imagePreview.style.display = "block";
+            }
+            if (statusMsg) {
+              statusMsg.textContent = `تم اختيار الصورة: ${file.name}`;
+            }
+          };
+          reader.readAsDataURL(file);
+        });
+      }
+
+      function buildEnhancedDescription(item) {
+        const baseText = item.mode === "image"
+          ? (item.motion || "حركة كاميرا سينمائية ناعمة وإبراز تفاصيل المشهد")
+          : item.prompt;
+
+        return [
+          `الوضع: ${item.mode === "image" ? "صورة إلى فيديو" : "نص إلى فيديو"}`,
+          `المدة: ${item.duration} | الأبعاد: ${item.aspect}`,
+          `الوصف المُحسّن: ${baseText} — إضاءة متوازنة، عمق ميداني واضح، وحركة سلسة.`
+        ].join(" • ");
+      }
+
+      function loadHistory() {
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY);
+          const parsed = raw ? JSON.parse(raw) : [];
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function saveHistory(items) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(items.slice(0, 15)));
+        } catch {
+          // تجاهل خطأ امتلاء التخزين المحلي
+        }
+      }
+
+      function renderHistory() {
+        if (!historyList) return;
+        const items = loadHistory();
+
+        if (!items.length) {
+          historyList.innerHTML = '<p class="sub">لا توجد عناصر محفوظة بعد.</p>';
+          return;
+        }
+
+        historyList.innerHTML = "";
+        items.forEach((item) => {
+          const row = document.createElement("div");
+          row.className = "history-item";
+
+          const info = document.createElement("div");
+          const title = document.createElement("strong");
+          title.textContent = item.mode === "image"
+            ? (item.motion || "مشهد من صورة")
+            : item.prompt;
+          title.style.display = "block";
+          title.style.fontSize = "13px";
+
+          const meta = document.createElement("span");
+          meta.className = "sub";
+          meta.textContent = `${item.mode === "image" ? "صورة إلى فيديو" : "نص إلى فيديو"} • ${item.duration} • ${item.aspect}`;
+
+          info.append(title, meta);
+
+          const actions = document.createElement("div");
+          actions.className = "history-actions";
+
+          const reuseBtn = document.createElement("button");
+          reuseBtn.type = "button";
+          reuseBtn.className = "mini-btn";
+          reuseBtn.textContent = "استرجاع";
+          reuseBtn.addEventListener("click", () => {
+            setMode(item.mode);
+            if (item.mode === "image") {
+              if (motionPrompt) motionPrompt.value = item.motion || "";
+              if (item.image && imagePreview) {
+                uploadedImageData = item.image;
+                imagePreview.src = item.image;
+                imagePreview.style.display = "block";
+              }
+            } else if (promptInput) {
+              promptInput.value = item.prompt || "";
+            }
+            if (durationSelect && item.duration) durationSelect.value = item.duration;
+            if (aspectSelect && item.aspect) aspectSelect.value = item.aspect;
+            applyPreview(item, false);
+          });
+
+          const deleteBtn = document.createElement("button");
+          deleteBtn.type = "button";
+          deleteBtn.className = "mini-btn";
+          deleteBtn.textContent = "حذف";
+          deleteBtn.addEventListener("click", () => {
+            const updated = loadHistory().filter((entry) => entry.id !== item.id);
+            saveHistory(updated);
+            renderHistory();
+          });
+
+          actions.append(reuseBtn, deleteBtn);
+          row.append(info, actions);
+          historyList.appendChild(row);
+        });
+      }
+
+      function applyPreview(item, shouldSave = true) {
+        const summary = buildEnhancedDescription(item);
+        if (enhancedBox) {
+          enhancedBox.textContent = summary;
+          enhancedBox.style.display = "block";
+        }
+        if (statusMsg) {
+          statusMsg.textContent = "تم تجهيز المعاينة وحفظ العنصر في السجل.";
+        }
+        if (resultVideo) {
+          resultVideo.style.display = "none";
+        }
+
+        if (shouldSave) {
+          const items = loadHistory();
+          items.unshift(item);
+          saveHistory(items);
+          renderHistory();
+        }
+      }
+
+      if (generateBtn) {
+        generateBtn.addEventListener("click", () => {
+          const promptValue = promptInput ? promptInput.value.trim() : "";
+          const motionValue = motionPrompt ? motionPrompt.value.trim() : "";
+
+          if (currentMode === "text" && !promptValue) {
+            if (statusMsg) {
+              statusMsg.textContent = "اكتب وصف المشهد أولاً أو اختر قالباً جاهزاً.";
+            }
+            return;
+          }
+
+          if (currentMode === "image" && !uploadedImageData && !motionValue) {
+            if (statusMsg) {
+              statusMsg.textContent = "اختر صورة مرجعية أو اكتب حركة المشهد المطلوبة.";
+            }
+            return;
+          }
+
+          const entry = {
+            id: `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+            mode: currentMode,
+            prompt: promptValue,
+            motion: motionValue,
+            image: currentMode === "image" ? uploadedImageData : "",
+            duration: durationSelect ? durationSelect.value : "10s",
+            aspect: aspectSelect ? aspectSelect.value : "16:9",
+            createdAt: new Date().toISOString()
+          };
+
+          applyPreview(entry, true);
+        });
+      }
+
+      if (clearBtn) {
+        clearBtn.addEventListener("click", () => {
+          if (promptInput) promptInput.value = "";
+          if (motionPrompt) motionPrompt.value = "";
+          if (imageInput) imageInput.value = "";
+          uploadedImageData = "";
+          if (imagePreview) {
+            imagePreview.removeAttribute("src");
+            imagePreview.style.display = "none";
+          }
+          if (enhancedBox) {
+            enhancedBox.textContent = "";
+            enhancedBox.style.display = "none";
+          }
+          if (resultVideo) {
+            resultVideo.style.display = "none";
+          }
+          if (statusMsg) {
+            statusMsg.textContent = "تم مسح الحقول. أدخل وصفاً أو اختر قالباً جاهزاً لبدء المعاينة.";
+          }
+        });
+      }
+
+      window.addEventListener("beforeinstallprompt", (event) => {
+        event.preventDefault();
+        deferredInstallPrompt = event;
+        if (installBanner) {
+          installBanner.classList.remove("show");
+        }
+      });
+
+      if (installBtn) {
+        installBtn.addEventListener("click", async () => {
+          if (deferredInstallPrompt) {
+            deferredInstallPrompt.prompt();
+            await deferredInstallPrompt.userChoice;
+            deferredInstallPrompt = null;
+            return;
+          }
+          if (installBanner) {
+            installBanner.classList.toggle("show");
+          }
+        });
+      }
+
+      renderHistory();
+    })();
+  </script>
+</body>
+</html>
+
